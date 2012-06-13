@@ -3,32 +3,42 @@
 #include "Servo.h"
 #include <SD.h>
 
+// ADXL345 stuff...
 #define ScaleFor2G 0.0039
 #define ScaleFor4G 0.0078
 #define ScaleFor8G 0.0156
 #define ScaleFor16G 0.0312
+
 #define BALL_VALVE_PWM_PORT 2
 #define SD_CARD_PORT 53
 
+// print out log messages through 9600 baud serial
 boolean DEBUG = true;
 
-unsigned long open_valve_time = 15000;
-unsigned long close_valve_time = 395000;
+Servo ball_valve;
+// timings for the redundant safety valve
+unsigned long open_valve_time = 15000;    // 15 seconds
+unsigned long close_valve_time = 395000;  // 395 seconds
+
+// current flight time
 unsigned long time;
+
+// acceleration
+ADXL345 adxl; //variable adxl is an instance of the ADXL345 library
 int x;
 int y;
 int z;
 
 File myfile;
 
+// keep track of sd card state, may need to attempt a reconnect mid-flight (we really don't want to though...)
 boolean sd_connected;
 
-Servo ball_valve;
+// reading count
 unsigned int reading = 0;
-int co2Value;
 
+int co2Value;
 int co2Addr = 0x68; // This is the default address of the CO2 sensor, 7bits shifted
-ADXL345 adxl; //variable adxl is an instance of the ADXL345 library
 
 void setup() {  
   if(DEBUG) Serial.begin(9600);
@@ -36,6 +46,8 @@ void setup() {
   pinMode(53, OUTPUT);
   if(!(sd_connected = SD.begin(53))) {
     // sd card not found...
+    // we can do something here, but its in setup, pretty useless
+    //   work inside loop() instead
   } 
   if(DEBUG) Serial.println("Initializing...");
   ball_valve_setup();
@@ -58,11 +70,10 @@ void setup() {
  *  mod-10 operation ignores all but every 10 samples
  */
 void loop() {
-  time = millis();
+  time = millis(); // get millis since boot - no sense of current datetime
+  
   if(DEBUG) Serial.print("Time: ");
   if(DEBUG) Serial.print(time);
-
-  //Serial.print("A ");
   
   if(!sd_connected) {
     Serial.println("SDCARD NOT CONNECTED");
@@ -136,14 +147,14 @@ void loop() {
  * Open the ball valve
  */
 void open_ball_valve() {
-  Serial.println("Open valve!");
+  if(DEBUG) Serial.println("Open valve!");
   ball_valve.write(150);
 }
 /*
  * Close the ball valve
  */
 void close_ball_valve() {
-  Serial.println("Close valve!");
+  if(DEBUG) Serial.println("Close valve!");
   ball_valve.write(50); 
 }
 /*
