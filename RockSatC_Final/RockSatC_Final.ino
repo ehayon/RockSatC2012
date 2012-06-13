@@ -10,6 +10,8 @@
 #define BALL_VALVE_PWM_PORT 2
 #define SD_CARD_PORT 53
 
+boolean DEBUG = true;
+
 unsigned long open_valve_time = 15000;
 unsigned long close_valve_time = 395000;
 unsigned long time;
@@ -29,31 +31,36 @@ int co2Addr = 0x68; // This is the default address of the CO2 sensor, 7bits shif
 ADXL345 adxl; //variable adxl is an instance of the ADXL345 library
 
 void setup() {  
-  Serial.begin(9600);
-  Serial.println("Initializing...");
+  if(DEBUG) Serial.begin(9600);
+  if(DEBUG) Serial.println("Initializing...");
   pinMode(53, OUTPUT);
   if(!(sd_connected = SD.begin(53))) {
     // sd card not found...
   } 
-    Serial.println("Initializing...");
+  if(DEBUG) Serial.println("Initializing...");
   ball_valve_setup();
-    Serial.println("Initializing...");
   adxl.powerOn();
 
-  adxl.setActivityThreshold(75); //62.5mg per increment
+  adxl.setActivityThreshold(75);   //62.5mg per increment
   adxl.setInactivityThreshold(75); //62.5mg per increment
-  adxl.setTimeInactivity(10); // how many seconds of no activity is inactive?
+  adxl.setTimeInactivity(10);      // how many seconds of no activity is inactive?
   adxl.setActivityX(1);
   adxl.setActivityY(1);
   adxl.setActivityZ(1);
   
-  PORTD = (1 << PORTD1) | (1 << PORTD0);//enable pullups
+  PORTD = (1 << PORTD1) | (1 << PORTD0); //enable pullups - attempting to make IR temp work :(
 }
 
+
+/*
+ * 50ms - runs at 20Hz
+ * CO2 sensor is sampled at it's manufacturers recommended frequency of 2Hz
+ *  mod-10 operation ignores all but every 10 samples
+ */
 void loop() {
   time = millis();
-  Serial.print("Time: ");
-  Serial.print(time);
+  if(DEBUG) Serial.print("Time: ");
+  if(DEBUG) Serial.print(time);
 
   //Serial.print("A ");
   
@@ -61,6 +68,8 @@ void loop() {
     Serial.println("SDCARD NOT CONNECTED");
     sd_connected = SD.begin(53);
   } else {
+    
+    // open and close the ball valve at the desired times
     if (time > open_valve_time && time <= close_valve_time) {
       open_ball_valve();
     } else {
@@ -68,7 +77,7 @@ void loop() {
     }
     
     // The SD Card is connected - we can write data to it now...
-    myfile = SD.open("test.txt", FILE_WRITE);
+    myfile = SD.open("RockSatC2012.txt", FILE_WRITE);
 
     
     adxl.readAccel(&x, &y, &z);
@@ -94,26 +103,26 @@ void loop() {
     myfile.print(" | CO2: ");
     myfile.print(co2Value);
     myfile.println();
-    /*
-    Serial.print("Time: ");
-    Serial.print(reading);
-    Serial.print(" | x: ");
-    Serial.print(x);
-    Serial.print(" | y: ");
-    Serial.print(y);
-    Serial.print(" | z: ");
-    Serial.print(z);
-    Serial.print(" | temp: ");
-    Serial.print("NA");
-    Serial.print(" | CO2: ");
-    Serial.print(co2Value);
-
-    Serial.println();
-    */
-
+    if(DEBUG) {
+      Serial.print("Time: ");
+      Serial.print(reading);
+      Serial.print(" | x: ");
+      Serial.print(x);
+      Serial.print(" | y: ");
+      Serial.print(y);
+      Serial.print(" | z: ");
+      Serial.print(z);
+      Serial.print(" | temp: ");
+      Serial.print("NA");
+      Serial.print(" | CO2: ");
+      Serial.print(co2Value);
+      Serial.println();
+    }
+    
     myfile.close();
-    reading++;
+    reading++; // keep track of our current reading... we're going to need this to create a timeline of launch
   }
+  
     Serial.println();
     delay(40);
 }
@@ -122,19 +131,33 @@ void loop() {
 /*
  * Ball Valve PWM functions
  */
+ 
+/*
+ * Open the ball valve
+ */
 void open_ball_valve() {
   Serial.println("Open valve!");
   ball_valve.write(150);
 }
-
+/*
+ * Close the ball valve
+ */
 void close_ball_valve() {
   Serial.println("Close valve!");
   ball_valve.write(50); 
 }
+/*
+ * Initialize the ball-valve servo - attach servo to BALL_VALVE_PWM_PORT
+ */
 void ball_valve_setup() {
   ball_valve.attach(BALL_VALVE_PWM_PORT);
 }
 
+/*
+ * Communicate with the Senseair K-30 over 2-wire serial interface
+ * returns: integer representation of the CO2 concentation in PPM
+ * 10ms
+ */
 int readCO2()
 {
   int co2_value = 0;
