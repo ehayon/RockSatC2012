@@ -13,7 +13,7 @@
 #define SD_CARD_PORT 53
 
 // print out log messages through 9600 baud serial
-boolean DEBUG = true;
+boolean DEBUG = false;
 
 Servo ball_valve;
 // timings for the redundant safety valve
@@ -50,7 +50,7 @@ void setup() {
     //   work inside loop() instead
   } 
   if(DEBUG) Serial.println("Initializing...");
-  ball_valve_setup();
+  // ball_valve_setup();
   adxl.powerOn();
 
   adxl.setActivityThreshold(75);   //62.5mg per increment
@@ -81,14 +81,17 @@ void loop() {
   } else {
     
     // open and close the ball valve at the desired times
+    
+    /*
     if (time > open_valve_time && time <= close_valve_time) {
       open_ball_valve();
     } else {
       close_ball_valve();
     }
+    */
     
     // The SD Card is connected - we can write data to it now...
-    myfile = SD.open("RockSatC2012.txt", FILE_WRITE);
+    myfile = SD.open("rocksat.txt", FILE_WRITE);
 
     
     adxl.readAccel(&x, &y, &z);
@@ -102,6 +105,7 @@ void loop() {
     }
 
     myfile.print("Time: ");
+    
     myfile.print(reading);
     myfile.print(" | x: ");
     myfile.print(x);
@@ -109,8 +113,8 @@ void loop() {
     myfile.print(y);
     myfile.print(" | z: ");
     myfile.print(z);
-    myfile.print(" | temp: ");
-    myfile.print("NA");
+    myfile.print(" | time: ");
+    myfile.print(time);
     myfile.print(" | CO2: ");
     myfile.print(co2Value);
     myfile.println();
@@ -124,7 +128,7 @@ void loop() {
       Serial.print(" | z: ");
       Serial.print(z);
       Serial.print(" | temp: ");
-      Serial.print("NA");
+      Serial.print(time);
       Serial.print(" | CO2: ");
       Serial.print(co2Value);
       Serial.println();
